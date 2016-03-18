@@ -19,47 +19,65 @@ function handler(req, res) {
         });
 }
 
-io.on('connection', function(socket) {
-    console.log(socket.id.replace("/#", ""));
+var ColorStore = function(){
+	this.people = {};
+	var self = this;
+	this.addPeople = function(peopleId){
+		self.people[peopleId] = "rgb("+Math.round(Math.random()*255)+","+Math.round(Math.random()*255)+","+Math.round(Math.random()*255)+")";
+	}
 
-    socket.emit('createBox', socket.id.replace("/#", ""));
-    socket.broadcast.emit('createPeople', socket.id.replace("/#", ""));
+	this.peopleColor = function(peopleId){
+		return self.people[peopleId];
+	}
+}
+
+var store = new ColorStore();
+
+io.on('connection', function(socket) {
+    var cleanSocketId = socket.id.replace("/#", "");
+    var mov = 10;
+    store.addPeople(cleanSocketId);
+    console.log(cleanSocketId+"---> "+store.peopleColor(cleanSocketId));
+
+    socket.emit('createBox', {id:cleanSocketId,color:store.peopleColor(cleanSocketId)});
+
+    socket.broadcast.emit('createPeople', {id:cleanSocketId,color:store.peopleColor(cleanSocketId)});
+
     socket.on("up", function(position) {
-        position.top += 50;
+        position.top += mov;
         io.sockets.emit("move", {
             position: position,
-            id: socket.id.replace("/#", "")
+            id: cleanSocketId
         });
     });
     socket.on("down", function(position) {
-        position.top -= 50;
+        position.top -= mov;
         io.sockets.emit("move", {
             position: position,
-            id: socket.id.replace("/#", "")
+            id: cleanSocketId
         });
     });
     socket.on("left", function(position) {
-        position.left -= 50;
+        position.left -= mov;
         io.sockets.emit("move", {
             position: position,
-            id: socket.id.replace("/#", "")
+            id: cleanSocketId
         });
     });
     socket.on("right", function(position) {
-        position.left += 50;
+        position.left += mov;
         io.sockets.emit("move", {
             position: position,
-            id: socket.id.replace("/#", "")
+            id: cleanSocketId
         });
     });
     socket.on('disconnect',function(){
-    	socket.broadcast.emit("deletePeople",socket.id.replace("/#", ""));
+    	socket.broadcast.emit("deletePeople",cleanSocketId);
     });
 
     for (var socketId in io.sockets.sockets) {
 	    if(socket.id != socketId){
-	    	console.log("all: " + socketId);
-    		socket.emit('createPeople', socketId.replace("/#", ""));
+    		socket.emit('createPeople', {id:socketId.replace("/#", ""),color:store.peopleColor(socketId.replace("/#", ""))});
 	    } 
 	}
 });
